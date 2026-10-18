@@ -187,7 +187,7 @@ class BatchTranslator:
                 return choices[0].get("message", {}).get("content", "").strip()
         raise RuntimeError(f"OpenAI error {res.status_code}: {res.text[:100]}")
 
-    def translate_batch(self, texts: list[str], max_workers: int = 5, progress_callback=None) -> dict:
+    def translate_batch(self, texts: list[str], max_workers: int = 5, progress_callback=None, cancel_event=None) -> dict:
         unique_texts = list(set(t.strip() for t in texts if t and len(t.strip()) > 1 and not t.strip().isdigit()))
         to_translate = [t for t in unique_texts if t not in self.cache]
 
@@ -210,11 +210,25 @@ class BatchTranslator:
         with ThreadPoolExecutor(max_workers=threads) as executor:
             future_to_text = {executor.submit(worker, t): t for t in to_translate}
             for future in as_completed(future_to_text):
+                if cancel_event and cancel_event.is_set():
+                    # User cancelled
+                    for f in future_to_text:
+                        f.cancel()
+                    self.save_cache()
+                    if progress_callback:
+                        progress_callback(completed, total, f"Translasi dihentikan. {completed}/{total} tersimpan di cache.")
+                    return self.cache
+
                 completed += 1
                 try:
                     future.result()
                 except Exception:
                     pass
+
+                # Auto-save cache every 50 items
+                if completed % 50 == 0:
+                    self.save_cache()
+
                 if progress_callback and (completed % 10 == 0 or completed == total):
                     pct = int((completed / total) * 100)
                     progress_callback(completed, total, f"Menerjemahkan: {completed}/{total} ({pct}%)")

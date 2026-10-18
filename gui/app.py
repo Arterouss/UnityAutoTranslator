@@ -38,6 +38,7 @@ class AutoTranslatorApp(ctk.CTk):
 
         self.game_info = None
         self.is_running = False
+        self.cancel_event = threading.Event()
         self.settings = load_settings()
 
         self._build_ui()
@@ -440,7 +441,16 @@ class AutoTranslatorApp(ctk.CTk):
             return
 
         self.is_running = True
-        self.start_btn.configure(state="disabled", text="⏳ Sedang Menerjemahkan & Patching Game...")
+        self.cancel_event.clear()
+
+        # Turn button into Cancel/Stop button
+        self.start_btn.configure(
+            state="normal",
+            text="⏹️ BATALKAN TRANSLASI (STOP)",
+            command=self._on_cancel_patch,
+            fg_color="#EF4444",
+            hover_color="#DC2626"
+        )
         self.restore_btn.configure(state="disabled")
         self.progress_bar.set(0)
         self.pct_lbl.configure(text="0%")
@@ -462,8 +472,18 @@ class AutoTranslatorApp(ctk.CTk):
                 def log_cb(msg):
                     self.after(0, lambda: self.log(msg))
 
-                success = patcher.run_auto_patch(progress_callback=prog_cb, log_callback=log_cb)
-                if success:
+                success = patcher.run_auto_patch(
+                    progress_callback=prog_cb,
+                    log_callback=log_cb,
+                    cancel_event=self.cancel_event
+                )
+                if self.cancel_event.is_set():
+                    self.after(0, lambda: messagebox.showinfo(
+                        "Translasi Dibatalkan",
+                        "Proses translasi berhasil dihentikan.\n"
+                        "Semua kalimat yang sudah selesai diterjemahkan tetap aman tersimpan di cache!"
+                    ))
+                elif success:
                     self.after(0, lambda: messagebox.showinfo(
                         "Translasi Berhasil! 🎉",
                         "Seluruh dialog & teks game berhasil diterjemahkan ke Bahasa Indonesia!\n\n"
@@ -479,6 +499,14 @@ class AutoTranslatorApp(ctk.CTk):
 
         threading.Thread(target=thread_target, daemon=True).start()
 
+    def _on_cancel_patch(self):
+        if not self.is_running:
+            return
+        self.cancel_event.set()
+        self.start_btn.configure(text="⏳ Menghentikan & Menyimpan Cache...", state="disabled")
+        self.status_lbl.configure(text="Status: Membatalkan proses... Mohon tunggu.")
+        self.log("[SISTEM] Perintah pembatalan diterima. Menyimpan progress yang sudah selesai ke cache...")
+
     def _update_progress(self, ratio: float, pct: int, msg: str):
         self.progress_bar.set(ratio)
         self.pct_lbl.configure(text=f"{pct}%")
@@ -486,10 +514,19 @@ class AutoTranslatorApp(ctk.CTk):
 
     def _on_finish(self):
         self.is_running = False
-        self.start_btn.configure(state="normal", text="🚀 MULAI TERJEMAHKAN KE BAHASA INDONESIA")
+        self.start_btn.configure(
+            state="normal",
+            text="🚀 MULAI TERJEMAHKAN KE BAHASA INDONESIA",
+            command=self._on_start_patch,
+            fg_color="#10B981",
+            hover_color="#059669"
+        )
         self.restore_btn.configure(state="normal")
-        self.status_lbl.configure(text="Status: Selesai!")
-        self.pct_lbl.configure(text="100%")
+        if self.cancel_event.is_set():
+            self.status_lbl.configure(text="Status: Dibatalkan. Cache tersimpan.")
+        else:
+            self.status_lbl.configure(text="Status: Selesai!")
+            self.pct_lbl.configure(text="100%")
 
     def _on_restore(self):
         if not self.game_info:

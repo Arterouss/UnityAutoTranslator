@@ -82,7 +82,7 @@ class UnityPatcher:
             script = script.decode('utf-8', errors='ignore')
         return name, script
 
-    def run_auto_patch(self, progress_callback=None, log_callback=None) -> bool:
+    def run_auto_patch(self, progress_callback=None, log_callback=None, cancel_event=None) -> bool:
         if log_callback:
             log_callback(f"Memulai analisis aset di: {self.data_dir}")
 
@@ -111,8 +111,31 @@ class UnityPatcher:
         if catalog_bin and os.path.exists(catalog_bin):
             files_to_backup.append(catalog_bin)
 
+        # Detect if game has dedicated English localization documents
+        has_en_docs = False
+        for bf in candidate_files:
+            try:
+                env = UnityPy.load(bf)
+                for obj in env.objects:
+                    if obj.type.name == 'TextAsset':
+                        _, s = self._read_textasset(obj)
+                        if '<en>' in s or 'English <en>' in s or ('managed text document' in s and ('<en>' in s or 'English' in s)):
+                            has_en_docs = True
+                            break
+                if has_en_docs:
+                    break
+            except Exception:
+                pass
+
+        if has_en_docs and log_callback:
+            log_callback("💡 Terdeteksi dokumen lokalisasi Bahasa Inggris! Memprioritaskan penerjemahan naskah English agar proses super cepat & fokus.")
+
         # Check each candidate for TextAsset / MonoBehaviour with text
         for bf in candidate_files:
+            if cancel_event and cancel_event.is_set():
+                if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+                return False
+
             try:
                 if log_callback:
                     log_callback(f"[Analisis] Memindai {os.path.basename(bf)}...")
@@ -124,12 +147,14 @@ class UnityPatcher:
                     if obj.type.name == 'TextAsset':
                         name, script = self._read_textasset(obj)
                         if len(script.strip()) > 20:
-                            is_en = '<en>' in script or 'English <en>' in script
-                            is_base_nani = '# ~' in script and 'localization document' not in script
-                            is_managed = 'managed text document' in script and ('<en>' in script or 'English' in script)
-                            is_generic_dialogue = any(w in script for w in [':', '@', '<color=']) and re_has_letters(script)
+                            if has_en_docs:
+                                is_match = '<en>' in script or 'English <en>' in script or ('managed text document' in script and ('<en>' in script or 'English' in script))
+                            else:
+                                is_base_nani = '# ~' in script and 'localization document' not in script
+                                is_generic_dialogue = any(w in script for w in [':', '@', '<color=']) and re_has_letters(script)
+                                is_match = is_base_nani or is_generic_dialogue
 
-                            if is_en or is_base_nani or is_managed or is_generic_dialogue:
+                            if is_match:
                                 has_text = True
                                 matched_count += 1
 
@@ -147,7 +172,7 @@ class UnityPatcher:
                     target_files.append(bf)
                     files_to_backup.append(bf)
                     if log_callback:
-                        log_callback(f"[Terdeteksi] {os.path.basename(bf)} memiliki naskah/dialog ({matched_count} objek teks).")
+                        log_callback(f"[Terdeteksi] {os.path.basename(bf)} memiliki naskah/dialog ({matched_count} objek teks terpilih).")
             except Exception as e:
                 if log_callback:
                     log_callback(f"[Info] {os.path.basename(bf)} dilewati ({e})")
@@ -155,6 +180,10 @@ class UnityPatcher:
         if not target_files:
             if log_callback:
                 log_callback("[Peringatan] Tidak ditemukan teks naskah yang cocok untuk di-patch.")
+            return False
+
+        if cancel_event and cancel_event.is_set():
+            if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
             return False
 
         # Create Backup before altering
@@ -168,6 +197,10 @@ class UnityPatcher:
         file_tasks = {}
 
         for bf in target_files:
+            if cancel_event and cancel_event.is_set():
+                if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+                return False
+
             try:
                 env = UnityPy.load(bf)
                 t_tasks = {}
@@ -179,12 +212,14 @@ class UnityPatcher:
                         if not script or len(script.strip()) < 10:
                             continue
 
-                        is_en = '<en>' in script or 'English <en>' in script
-                        is_base_nani = '# ~' in script and 'localization document' not in script
-                        is_managed = 'managed text document' in script and ('<en>' in script or 'English' in script)
-                        is_generic = any(w in script for w in [':', '@', '<color=']) and re_has_letters(script)
+                        if has_en_docs:
+                            is_match = '<en>' in script or 'English <en>' in script or ('managed text document' in script and ('<en>' in script or 'English' in script))
+                        else:
+                            is_base_nani = '# ~' in script and 'localization document' not in script
+                            is_generic = any(w in script for w in [':', '@', '<color=']) and re_has_letters(script)
+                            is_match = is_base_nani or is_generic
 
-                        if is_en or is_base_nani or is_managed or is_generic:
+                        if is_match:
                             lines = script.splitlines()
                             t_tasks[obj.path_id] = (name, lines)
                             for line in lines:
@@ -220,6 +255,10 @@ class UnityPatcher:
         if log_callback:
             log_callback(f"Berhasil mengekstrak {len(extracted_strings)} baris teks unik!")
 
+        if cancel_event and cancel_event.is_set():
+            if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+            return False
+
         # 3. Translate all extracted strings
         settings = load_settings()
         thread_count = settings.get("threads", 5)
@@ -231,10 +270,16 @@ class UnityPatcher:
             translations = self.translator.translate_batch(
                 list(extracted_strings),
                 max_workers=thread_count,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
+                cancel_event=cancel_event
             )
         else:
             translations = {}
+
+        if cancel_event and cancel_event.is_set():
+            if log_callback:
+                log_callback("[Batal] Proses translasi dihentikan. Progres yang sudah selesai tetap tersimpan aman di cache!")
+            return False
 
         # 4. Inject translations back into files
         if log_callback:
