@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller build artifacts
+build/
+dist/
+
+# Game translation caches & backups
+_AutoTranslator_Cache/
+_Original_Backup/
+*.log
+
+# Virtual environments
+venv/
+.venv/
+env/
