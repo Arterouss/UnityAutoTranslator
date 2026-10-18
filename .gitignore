@@ -7,6 +7,9 @@ __pycache__/
 build/
 dist/
 
+# Configuration containing private API keys
+settings.json
+
 # Game translation caches & backups
 _AutoTranslator_Cache/
 _Original_Backup/
