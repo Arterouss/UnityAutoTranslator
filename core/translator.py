@@ -195,11 +195,11 @@ class BatchTranslator:
         completed = total - len(to_translate)
 
         if progress_callback:
-            progress_callback(completed, total, f"Memeriksa cache ({completed}/{total} baris sudah ada)...")
+            progress_callback(completed, total, f"Checking cache ({completed}/{total} found)...")
 
         if not to_translate:
             if progress_callback:
-                progress_callback(total, total, "Semua teks sudah ada di cache!")
+                progress_callback(total, total, "All strings found in cache.")
             return self.cache
 
         def worker(t):
@@ -216,7 +216,7 @@ class BatchTranslator:
                         f.cancel()
                     self.save_cache()
                     if progress_callback:
-                        progress_callback(completed, total, f"Translasi dihentikan. {completed}/{total} tersimpan di cache.")
+                        progress_callback(completed, total, f"Cancelled. {completed}/{total} saved to cache.")
                     return self.cache
 
                 completed += 1
@@ -231,11 +231,11 @@ class BatchTranslator:
 
                 if progress_callback and (completed % 10 == 0 or completed == total):
                     pct = int((completed / total) * 100)
-                    progress_callback(completed, total, f"Menerjemahkan: {completed}/{total} ({pct}%)")
+                    progress_callback(completed, total, f"Translating: {completed}/{total} ({pct}%)")
 
         self.save_cache()
         if progress_callback:
-            progress_callback(total, total, "Selesai menerjemahkan batch!")
+            progress_callback(total, total, "Batch translation complete.")
 
         return self.cache
 
@@ -260,12 +260,12 @@ class BatchTranslator:
             elif engine in ["openai", "custom"]:
                 res = dummy_trans._translate_openai(test_phrase, is_custom=(engine == "custom"))
             else:
-                return False, f"Engine {engine} tidak dikenali."
+                return False, f"Unknown engine: {engine}"
 
             elapsed_ms = int((time.time() - t0) * 1000)
-            return True, f"Berhasil! Respon: '{res}' ({elapsed_ms}ms)"
+            return True, f"Success ({elapsed_ms}ms): '{res}'"
         except Exception as e:
-            return False, f"Gagal: {e}"
+            return False, f"Error: {e}"
 
 def re_has_letters(text: str) -> bool:
     import re

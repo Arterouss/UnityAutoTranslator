@@ -10,14 +10,13 @@ class SettingsDialog(ctk.CTkToplevel):
     def __init__(self, parent, on_save_callback=None):
         super().__init__(parent)
 
-        self.title("⚙️ Pengaturan Engine & API Translasi")
-        self.geometry("560x670")
-        self.minsize(540, 640)
+        self.title("Translation Settings")
+        self.geometry("500x560")
+        self.minsize(480, 520)
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
-        # Try to set window icon
         icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app_icon.ico")
         if getattr(sys, 'frozen', False):
             base = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
@@ -36,49 +35,43 @@ class SettingsDialog(ctk.CTkToplevel):
         self._on_engine_change(self.engine_var.get())
 
     def _build_ui(self):
-        self.configure(fg_color="#0F172A")
+        self.configure(fg_color="#121214")
 
-        container = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        container.pack(fill="both", expand=True, padx=22, pady=(18, 12))
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=24, pady=20)
 
-        # 1. Title Header
-        header_frame = ctk.CTkFrame(container, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 14))
-
+        # Header
         title = ctk.CTkLabel(
-            header_frame,
-            text="⚙️ Pengaturan Mesin Penerjemah",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color="#38BDF8"
+            container,
+            text="Settings",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#F4F4F5"
         )
-        title.pack(anchor="w")
+        title.pack(anchor="w", pady=(0, 2))
 
         subtitle = ctk.CTkLabel(
-            header_frame,
-            text="Gunakan Google Translate gratis bawaan atau masukkan API Key AI pribadi.",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color="#94A3B8"
+            container,
+            text="Configure translation engine and API keys.",
+            font=ctk.CTkFont(size=12),
+            text_color="#71717A"
         )
-        subtitle.pack(anchor="w", pady=(2, 0))
+        subtitle.pack(anchor="w", pady=(0, 16))
 
-        # 2. Provider Selection Card
-        provider_card = ctk.CTkFrame(container, fg_color="#1E293B", corner_radius=12, border_color="#334155", border_width=1)
-        provider_card.pack(fill="x", pady=(0, 14), ipadx=14, ipady=12)
-
-        prov_title = ctk.CTkLabel(
-            provider_card,
-            text="Pilih Provider / Engine:",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#F8FAFC"
+        # Provider Selection
+        prov_label = ctk.CTkLabel(
+            container,
+            text="Translation Provider",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#D4D4D8"
         )
-        prov_title.pack(anchor="w", padx=14, pady=(6, 4))
+        prov_label.pack(anchor="w", pady=(0, 4))
 
         engine_options = [
-            "Google Translate (Gratis - Siap Pakai)",
-            "Google Gemini AI (Cloud API)",
-            "DeepL API (Natural Language)",
-            "OpenAI / ChatGPT (GPT-4o-mini)",
-            "Custom / Local AI (Ollama / OpenRouter)"
+            "Google Translate",
+            "Google Gemini",
+            "DeepL API",
+            "OpenAI",
+            "Custom Endpoint (Ollama / Local)"
         ]
 
         self.engine_var = ctk.StringVar()
@@ -93,186 +86,181 @@ class SettingsDialog(ctk.CTkToplevel):
         self.engine_var.set(engine_map_rev.get(cur_engine, engine_options[0]))
 
         self.engine_dropdown = ctk.CTkComboBox(
-            provider_card,
+            container,
             values=engine_options,
             variable=self.engine_var,
             command=self._on_engine_change,
-            height=38,
-            font=ctk.CTkFont(size=13),
-            fg_color="#0F172A",
-            border_color="#475569",
-            button_color="#0284C7",
-            button_hover_color="#0369A1"
+            height=34,
+            font=ctk.CTkFont(size=12),
+            fg_color="#18181B",
+            border_color="#27272A",
+            button_color="#27272A",
+            button_hover_color="#3F3F46"
         )
-        self.engine_dropdown.pack(fill="x", padx=14, pady=(2, 6))
+        self.engine_dropdown.pack(fill="x", pady=(0, 14))
 
-        # 3. Dynamic Configuration Fields Card
-        self.fields_frame = ctk.CTkFrame(container, fg_color="#1E293B", corner_radius=12, border_color="#334155", border_width=1)
-        self.fields_frame.pack(fill="x", pady=(0, 14), ipadx=14, ipady=12)
+        # Dynamic Fields Card
+        self.fields_frame = ctk.CTkFrame(container, fg_color="#18181B", corner_radius=6, border_color="#27272A", border_width=1)
+        self.fields_frame.pack(fill="x", pady=(0, 14), padx=0, ipadx=14, ipady=12)
 
-        # Info Box (For Google / Instructions)
+        # Info Box (Google notice)
         self.info_box = ctk.CTkLabel(
             self.fields_frame,
             text="",
             font=ctk.CTkFont(size=12),
-            text_color="#94A3B8",
-            justify="left",
-            wraplength=460
+            text_color="#A1A1AA",
+            justify="left"
         )
 
-        # API Key Row
-        self.key_label = ctk.CTkLabel(self.fields_frame, text="API Key:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#E2E8F0")
-        
+        # API Key Field
+        self.key_label = ctk.CTkLabel(self.fields_frame, text="API Key", font=ctk.CTkFont(size=12, weight="bold"), text_color="#D4D4D8")
         self.key_container = ctk.CTkFrame(self.fields_frame, fg_color="transparent")
+        
         self.key_entry = ctk.CTkEntry(
             self.key_container,
-            placeholder_text="Masukkan API Key...",
+            placeholder_text="Enter API Key...",
             show="•",
-            height=36,
+            height=34,
             font=ctk.CTkFont(size=12),
-            fg_color="#0F172A",
-            border_color="#475569"
+            fg_color="#121214",
+            border_color="#27272A"
         )
         self.key_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
 
         self.toggle_eye_btn = ctk.CTkButton(
             self.key_container,
-            text="👁️",
-            width=36,
-            height=36,
+            text="Show",
+            width=50,
+            height=34,
             command=self._toggle_show_key,
-            fg_color="#334155",
-            hover_color="#475569"
+            fg_color="#27272A",
+            hover_color="#3F3F46",
+            font=ctk.CTkFont(size=11)
         )
         self.toggle_eye_btn.pack(side="right")
 
-        # Link button to get free API Key
+        # Link button
         self.link_btn = ctk.CTkButton(
             self.fields_frame,
-            text="🔗 Buka Halaman Buat API Key Gratis (aistudio.google.com)",
+            text="Get API key",
             font=ctk.CTkFont(size=11, underline=True),
-            height=24,
+            height=20,
             fg_color="transparent",
-            text_color="#38BDF8",
-            hover_color="#334155",
+            text_color="#3B82F6",
+            hover_color="#27272A",
             command=self._open_api_key_url
         )
 
-        # Model Selection Row
-        self.model_label = ctk.CTkLabel(self.fields_frame, text="Model AI:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#E2E8F0")
+        # Model Field
+        self.model_label = ctk.CTkLabel(self.fields_frame, text="Model", font=ctk.CTkFont(size=12, weight="bold"), text_color="#D4D4D8")
         self.model_entry = ctk.CTkEntry(
             self.fields_frame,
-            height=36,
+            height=34,
             font=ctk.CTkFont(size=12),
-            fg_color="#0F172A",
-            border_color="#475569"
+            fg_color="#121214",
+            border_color="#27272A"
         )
 
-        # Endpoint Row (For Custom/Local AI)
-        self.endpoint_label = ctk.CTkLabel(self.fields_frame, text="Custom API Base URL (Ollama / OpenRouter):", font=ctk.CTkFont(size=12, weight="bold"), text_color="#E2E8F0")
+        # Endpoint Field
+        self.endpoint_label = ctk.CTkLabel(self.fields_frame, text="Endpoint Base URL", font=ctk.CTkFont(size=12, weight="bold"), text_color="#D4D4D8")
         self.endpoint_entry = ctk.CTkEntry(
             self.fields_frame,
             placeholder_text="http://localhost:11434/v1",
-            height=36,
+            height=34,
             font=ctk.CTkFont(size=12),
-            fg_color="#0F172A",
-            border_color="#475569"
+            fg_color="#121214",
+            border_color="#27272A"
         )
 
-        # 4. Live Connection Test Card
-        test_card = ctk.CTkFrame(container, fg_color="#1E293B", corner_radius=12, border_color="#334155", border_width=1)
-        test_card.pack(fill="x", pady=(0, 14), ipadx=14, ipady=10)
-
-        test_row = ctk.CTkFrame(test_card, fg_color="transparent")
-        test_row.pack(fill="x", padx=14, pady=6)
+        # Connection Test Row
+        test_row = ctk.CTkFrame(container, fg_color="transparent")
+        test_row.pack(fill="x", pady=(0, 14))
 
         self.test_btn = ctk.CTkButton(
             test_row,
-            text="🧪 Uji Koneksi API",
-            font=ctk.CTkFont(weight="bold"),
+            text="Test Connection",
+            font=ctk.CTkFont(size=12),
             command=self._on_test_connection,
-            width=150,
-            height=36,
-            fg_color="#0284C7",
-            hover_color="#0369A1"
+            width=130,
+            height=32,
+            fg_color="#27272A",
+            hover_color="#3F3F46"
         )
         self.test_btn.pack(side="left")
 
         self.test_status_lbl = ctk.CTkLabel(
             test_row,
-            text="Klik untuk menguji respon penerjemah.",
+            text="",
             font=ctk.CTkFont(size=11),
-            text_color="#94A3B8"
+            text_color="#71717A"
         )
-        self.test_status_lbl.pack(side="left", padx=12)
+        self.test_status_lbl.pack(side="left", padx=10)
 
-        # 5. Multi-threading Speed Card
-        speed_card = ctk.CTkFrame(container, fg_color="#1E293B", corner_radius=12, border_color="#334155", border_width=1)
-        speed_card.pack(fill="x", pady=(0, 16), ipadx=14, ipady=12)
+        # Multi-threading Slider
+        thread_header = ctk.CTkFrame(container, fg_color="transparent")
+        thread_header.pack(fill="x", pady=(0, 4))
 
-        speed_header = ctk.CTkFrame(speed_card, fg_color="transparent")
-        speed_header.pack(fill="x", padx=14, pady=(6, 4))
-
-        speed_title = ctk.CTkLabel(
-            speed_header,
-            text="Kecepatan Translasi Paralel (Threads):",
+        thread_title = ctk.CTkLabel(
+            thread_header,
+            text="Concurrency (Threads)",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#F8FAFC"
+            text_color="#D4D4D8"
         )
-        speed_title.pack(side="left")
+        thread_title.pack(side="left")
 
         self.thread_val_lbl = ctk.CTkLabel(
-            speed_header,
-            text=f"{self.settings.get('threads', 5)} Threads (Optimal)",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#38BDF8"
+            thread_header,
+            text=f"{self.settings.get('threads', 5)} threads",
+            font=ctk.CTkFont(size=12),
+            text_color="#71717A"
         )
         self.thread_val_lbl.pack(side="right")
 
         self.thread_slider = ctk.CTkSlider(
-            speed_card,
+            container,
             from_=1,
             to=10,
             number_of_steps=9,
             command=self._on_slider_change,
-            progress_color="#38BDF8",
-            button_color="#0284C7",
-            button_hover_color="#0369A1"
+            progress_color="#3B82F6",
+            button_color="#2563EB",
+            button_hover_color="#1D4ED8",
+            height=14
         )
         self.thread_slider.set(self.settings.get("threads", 5))
-        self.thread_slider.pack(fill="x", padx=14, pady=(2, 6))
+        self.thread_slider.pack(fill="x", pady=(0, 20))
 
         # Bottom Buttons
-        bottom_frame = ctk.CTkFrame(self, fg_color="#0F172A", height=60)
-        bottom_frame.pack(fill="x", side="bottom", padx=22, pady=(0, 18))
+        bottom_frame = ctk.CTkFrame(container, fg_color="transparent")
+        bottom_frame.pack(fill="x", side="bottom")
 
         save_btn = ctk.CTkButton(
             bottom_frame,
-            text="💾 Simpan & Terapkan Pengaturan",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            height=42,
+            text="Save",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=36,
             command=self._on_save,
-            fg_color="#10B981",
-            hover_color="#059669"
+            fg_color="#2563EB",
+            hover_color="#1D4ED8"
         )
-        save_btn.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        save_btn.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         cancel_btn = ctk.CTkButton(
             bottom_frame,
-            text="Tutup",
+            text="Close",
             font=ctk.CTkFont(size=12),
-            height=42,
-            width=100,
+            height=36,
+            width=90,
             command=self.destroy,
-            fg_color="#334155",
-            hover_color="#475569"
+            fg_color="#27272A",
+            hover_color="#3F3F46"
         )
         cancel_btn.pack(side="right")
 
     def _toggle_show_key(self):
         self.show_key = not self.show_key
         self.key_entry.configure(show="" if self.show_key else "•")
-        self.toggle_eye_btn.configure(text="🔒" if self.show_key else "👁️")
+        self.toggle_eye_btn.configure(text="Hide" if self.show_key else "Show")
 
     def _open_api_key_url(self):
         engine = self._get_selected_engine_key()
@@ -285,8 +273,7 @@ class SettingsDialog(ctk.CTkToplevel):
 
     def _on_slider_change(self, val):
         threads = int(val)
-        desc = "Santai" if threads <= 2 else ("Optimal" if threads <= 6 else "Kecepatan Tinggi")
-        self.thread_val_lbl.configure(text=f"{threads} Threads ({desc})")
+        self.thread_val_lbl.configure(text=f"{threads} threads")
 
     def _get_selected_engine_key(self) -> str:
         txt = self.engine_var.get()
@@ -312,79 +299,53 @@ class SettingsDialog(ctk.CTkToplevel):
 
         if engine == "google":
             self.info_box.configure(
-                text="✔ Google Translate siap digunakan tanpa kunci API!\n"
-                     "• 100% Gratis & tanpa batas kuota akun.\n"
-                     "• Menggunakan direct unmetered GTX endpoint untuk kecepatan tinggi.",
-                text_color="#4ADE80"
+                text="Google Translate uses the direct unmetered endpoint.\nNo API key required.",
+                text_color="#A1A1AA"
             )
-            self.info_box.pack(anchor="w", padx=14, pady=8)
-            self.test_status_lbl.configure(text="Siap digunakan (Gratis)", text_color="#4ADE80")
+            self.info_box.pack(anchor="w", padx=14, pady=10)
+            self.test_status_lbl.configure(text="Ready (Free)", text_color="#71717A")
 
         elif engine == "gemini":
-            self.info_box.configure(
-                text="✨ Google Gemini AI menghasilkan dialog game yang sangat alami & sesuai konteks cerita.",
-                text_color="#38BDF8"
-            )
-            self.info_box.pack(anchor="w", padx=14, pady=(8, 4))
-
             self.key_label.pack(anchor="w", padx=14, pady=(6, 2))
             self.key_container.pack(fill="x", padx=14, pady=(0, 4))
             self.key_entry.delete(0, "end")
             self.key_entry.insert(0, self.settings.get("gemini_api_key", ""))
 
-            self.link_btn.configure(text="🔗 Klik di sini untuk membuat Gemini API Key gratis di Google AI Studio")
+            self.link_btn.configure(text="Get free Gemini API Key")
             self.link_btn.pack(anchor="w", padx=14, pady=(0, 8))
 
             self.model_label.pack(anchor="w", padx=14, pady=(0, 2))
             self.model_entry.pack(fill="x", padx=14, pady=(0, 8))
             self.model_entry.delete(0, "end")
             self.model_entry.insert(0, self.settings.get("gemini_model", "gemini-1.5-flash"))
-            self.test_status_lbl.configure(text="Masukkan API Key lalu klik Uji Koneksi.", text_color="#94A3B8")
+            self.test_status_lbl.configure(text="")
 
         elif engine == "deepl":
-            self.info_box.configure(
-                text="🌐 DeepL Translator menyediakan translasi profesional berkualitas tinggi.",
-                text_color="#38BDF8"
-            )
-            self.info_box.pack(anchor="w", padx=14, pady=(8, 4))
-
             self.key_label.pack(anchor="w", padx=14, pady=(6, 2))
             self.key_container.pack(fill="x", padx=14, pady=(0, 4))
             self.key_entry.delete(0, "end")
             self.key_entry.insert(0, self.settings.get("deepl_api_key", ""))
 
-            self.link_btn.configure(text="🔗 Dapatkan DeepL Authentication Key di www.deepl.com")
+            self.link_btn.configure(text="Get DeepL API Key")
             self.link_btn.pack(anchor="w", padx=14, pady=(0, 8))
-            self.test_status_lbl.configure(text="Masukkan DeepL Key lalu klik Uji Koneksi.", text_color="#94A3B8")
+            self.test_status_lbl.configure(text="")
 
         elif engine == "openai":
-            self.info_box.configure(
-                text="🤖 OpenAI ChatGPT (GPT-4o / GPT-4o-mini) untuk kualitas lokalisasi premium.",
-                text_color="#38BDF8"
-            )
-            self.info_box.pack(anchor="w", padx=14, pady=(8, 4))
-
             self.key_label.pack(anchor="w", padx=14, pady=(6, 2))
             self.key_container.pack(fill="x", padx=14, pady=(0, 4))
             self.key_entry.delete(0, "end")
             self.key_entry.insert(0, self.settings.get("openai_api_key", ""))
 
-            self.link_btn.configure(text="🔗 Buat API Key di platform.openai.com")
+            self.link_btn.configure(text="Get OpenAI API Key")
             self.link_btn.pack(anchor="w", padx=14, pady=(0, 8))
 
             self.model_label.pack(anchor="w", padx=14, pady=(0, 2))
             self.model_entry.pack(fill="x", padx=14, pady=(0, 8))
             self.model_entry.delete(0, "end")
             self.model_entry.insert(0, self.settings.get("openai_model", "gpt-4o-mini"))
-            self.test_status_lbl.configure(text="Masukkan OpenAI Key lalu klik Uji Koneksi.", text_color="#94A3B8")
+            self.test_status_lbl.configure(text="")
 
         elif engine == "custom":
-            self.info_box.configure(
-                text="💻 Hubungkan ke AI Lokal seperti Ollama, LM Studio, vLLM atau OpenRouter.",
-                text_color="#38BDF8"
-            )
-            self.info_box.pack(anchor="w", padx=14, pady=(8, 4))
-
             self.endpoint_label.pack(anchor="w", padx=14, pady=(6, 2))
             self.endpoint_entry.pack(fill="x", padx=14, pady=(0, 8))
             self.endpoint_entry.delete(0, "end")
@@ -395,12 +356,12 @@ class SettingsDialog(ctk.CTkToplevel):
             self.model_entry.delete(0, "end")
             self.model_entry.insert(0, self.settings.get("custom_model", "qwen2.5:latest"))
 
-            self.key_label.configure(text="API Key (Opsional untuk Ollama, Diperlukan untuk OpenRouter):")
+            self.key_label.configure(text="API Key (Optional for Ollama)")
             self.key_label.pack(anchor="w", padx=14, pady=(0, 2))
             self.key_container.pack(fill="x", padx=14, pady=(0, 8))
             self.key_entry.delete(0, "end")
             self.key_entry.insert(0, self.settings.get("openai_api_key", ""))
-            self.test_status_lbl.configure(text="Pastikan endpoint lokal menyala lalu uji koneksi.", text_color="#94A3B8")
+            self.test_status_lbl.configure(text="")
 
     def _on_test_connection(self):
         engine = self._get_selected_engine_key()
@@ -411,34 +372,33 @@ class SettingsDialog(ctk.CTkToplevel):
             curr_settings["gemini_api_key"] = self.key_entry.get().strip()
             curr_settings["gemini_model"] = self.model_entry.get().strip()
             if not curr_settings["gemini_api_key"]:
-                messagebox.showwarning("Peringatan", "Silakan masukkan Gemini API Key terlebih dahulu!")
+                messagebox.showwarning("Notice", "Please enter a Gemini API Key.")
                 return
         elif engine == "deepl":
             curr_settings["deepl_api_key"] = self.key_entry.get().strip()
             if not curr_settings["deepl_api_key"]:
-                messagebox.showwarning("Peringatan", "Silakan masukkan DeepL API Key terlebih dahulu!")
+                messagebox.showwarning("Notice", "Please enter a DeepL API Key.")
                 return
         elif engine == "openai":
             curr_settings["openai_api_key"] = self.key_entry.get().strip()
             curr_settings["openai_model"] = self.model_entry.get().strip()
             if not curr_settings["openai_api_key"]:
-                messagebox.showwarning("Peringatan", "Silakan masukkan OpenAI API Key terlebih dahulu!")
+                messagebox.showwarning("Notice", "Please enter an OpenAI API Key.")
                 return
         elif engine == "custom":
             curr_settings["openai_api_key"] = self.key_entry.get().strip()
             curr_settings["custom_model"] = self.model_entry.get().strip()
             curr_settings["custom_endpoint"] = self.endpoint_entry.get().strip()
 
-        self.test_status_lbl.configure(text="⏳ Menguji respon server...", text_color="#38BDF8")
+        self.test_status_lbl.configure(text="Connecting...", text_color="#A1A1AA")
         self.update_idletasks()
 
         ok, msg = BatchTranslator.test_engine_connection(engine, curr_settings)
         if ok:
-            self.test_status_lbl.configure(text=msg, text_color="#4ADE80")
-            messagebox.showinfo("Uji Koneksi Berhasil! ⚡", f"Koneksi {engine.upper()} berhasil!\n\n{msg}")
+            self.test_status_lbl.configure(text=msg, text_color="#34D399")
         else:
-            self.test_status_lbl.configure(text="❌ Gagal terhubung.", text_color="#F87171")
-            messagebox.showerror("Uji Koneksi Gagal", f"Tidak dapat terhubung ke {engine.upper()}:\n\n{msg}")
+            self.test_status_lbl.configure(text="Connection failed.", text_color="#F87171")
+            messagebox.showerror("Connection Failed", msg)
 
     def _on_save(self):
         engine = self._get_selected_engine_key()
@@ -463,5 +423,4 @@ class SettingsDialog(ctk.CTkToplevel):
         if self.on_save_callback:
             self.on_save_callback(self.settings)
 
-        messagebox.showinfo("Pengaturan Tersimpan", f"Engine aktif berhasil diubah ke: {engine.upper()}!")
         self.destroy()

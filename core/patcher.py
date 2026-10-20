@@ -32,12 +32,12 @@ class UnityPatcher:
                 if not os.path.exists(dst):
                     shutil.copy2(src, dst)
                     if log_callback:
-                        log_callback(f"[Backup] {os.path.basename(src)}")
+                        log_callback(f"Backup: {os.path.basename(src)}")
 
     def restore_backup(self, log_callback=None) -> bool:
         if not os.path.exists(self.backup_dir) or len(os.listdir(self.backup_dir)) == 0:
             if log_callback:
-                log_callback("Folder backup (_Original_Backup) tidak ditemukan atau kosong.")
+                log_callback("Backup folder (_Original_Backup) not found.")
             return False
 
         restored_count = 0
@@ -50,10 +50,10 @@ class UnityPatcher:
                 shutil.copy2(backup_file, target_file)
                 restored_count += 1
                 if log_callback:
-                    log_callback(f"[Restore] {os.path.basename(target_file)}")
+                    log_callback(f"Restored: {os.path.basename(target_file)}")
 
         if log_callback:
-            log_callback(f"Sukses! {restored_count} file game telah dikembalikan ke versi original.")
+            log_callback(f"Restore complete ({restored_count} files restored).")
         return True
 
     def _read_textasset(self, obj) -> tuple[str, str]:
@@ -84,7 +84,7 @@ class UnityPatcher:
 
     def run_auto_patch(self, progress_callback=None, log_callback=None, cancel_event=None) -> bool:
         if log_callback:
-            log_callback(f"Memulai analisis aset di: {self.data_dir}")
+            log_callback(f"Analyzing assets in: {self.data_dir}")
 
         streaming_assets = os.path.join(self.data_dir, "StreamingAssets")
         catalog_bin = os.path.join(streaming_assets, "aa", "catalog.bin") if os.path.exists(streaming_assets) else None
@@ -104,7 +104,7 @@ class UnityPatcher:
                     candidate_files.append(fp)
 
         if log_callback:
-            log_callback(f"Memeriksa {len(candidate_files)} file aset game...")
+            log_callback(f"Checking {len(candidate_files)} asset files...")
 
         target_files = []
         files_to_backup = []
@@ -128,17 +128,17 @@ class UnityPatcher:
                 pass
 
         if has_en_docs and log_callback:
-            log_callback("💡 Terdeteksi dokumen lokalisasi Bahasa Inggris! Memprioritaskan penerjemahan naskah English agar proses super cepat & fokus.")
+            log_callback("Found English localization assets. Prioritizing English texts.")
 
         # Check each candidate for TextAsset / MonoBehaviour with text
         for bf in candidate_files:
             if cancel_event and cancel_event.is_set():
-                if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+                if log_callback: log_callback("Process cancelled by user.")
                 return False
 
             try:
                 if log_callback:
-                    log_callback(f"[Analisis] Memindai {os.path.basename(bf)}...")
+                    log_callback(f"Scanning: {os.path.basename(bf)}...")
                 env = UnityPy.load(bf)
                 has_text = False
                 matched_count = 0
@@ -172,18 +172,18 @@ class UnityPatcher:
                     target_files.append(bf)
                     files_to_backup.append(bf)
                     if log_callback:
-                        log_callback(f"[Terdeteksi] {os.path.basename(bf)} memiliki naskah/dialog ({matched_count} objek teks terpilih).")
+                        log_callback(f"Matched {matched_count} text items in {os.path.basename(bf)}.")
             except Exception as e:
                 if log_callback:
-                    log_callback(f"[Info] {os.path.basename(bf)} dilewati ({e})")
+                    log_callback(f"Skipped {os.path.basename(bf)}: {e}")
 
         if not target_files:
             if log_callback:
-                log_callback("[Peringatan] Tidak ditemukan teks naskah yang cocok untuk di-patch.")
+                log_callback("No translatable dialogue or text assets found.")
             return False
 
         if cancel_event and cancel_event.is_set():
-            if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+            if log_callback: log_callback("Process cancelled by user.")
             return False
 
         # Create Backup before altering
@@ -191,14 +191,14 @@ class UnityPatcher:
 
         # 2. Extract strings from target files
         if log_callback:
-            log_callback(f"Mengekstrak baris dialog dari {len(target_files)} file aset...")
+            log_callback(f"Extracting text from {len(target_files)} asset files...")
 
         extracted_strings = set()
         file_tasks = {}
 
         for bf in target_files:
             if cancel_event and cancel_event.is_set():
-                if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+                if log_callback: log_callback("Process cancelled by user.")
                 return False
 
             try:
@@ -250,13 +250,13 @@ class UnityPatcher:
                     file_tasks[bf] = {'textassets': t_tasks, 'monos': m_tasks}
             except Exception as e:
                 if log_callback:
-                    log_callback(f"[Error Ekstraksi] {os.path.basename(bf)}: {e}")
+                    log_callback(f"Extraction error in {os.path.basename(bf)}: {e}")
 
         if log_callback:
-            log_callback(f"Berhasil mengekstrak {len(extracted_strings)} baris teks unik!")
+            log_callback(f"Extracted {len(extracted_strings)} unique strings.")
 
         if cancel_event and cancel_event.is_set():
-            if log_callback: log_callback("[Batal] Proses dihentikan oleh pengguna.")
+            if log_callback: log_callback("Process cancelled by user.")
             return False
 
         # 3. Translate all extracted strings
@@ -266,7 +266,7 @@ class UnityPatcher:
         if extracted_strings:
             if log_callback:
                 engine_name = settings.get("engine", "google").capitalize()
-                log_callback(f"Memulai batch translasi ke Bahasa Indonesia menggunakan {engine_name} ({thread_count} threads)...")
+                log_callback(f"Translating batch with {engine_name} ({thread_count} threads)...")
             translations = self.translator.translate_batch(
                 list(extracted_strings),
                 max_workers=thread_count,
@@ -278,12 +278,12 @@ class UnityPatcher:
 
         if cancel_event and cancel_event.is_set():
             if log_callback:
-                log_callback("[Batal] Proses translasi dihentikan. Progres yang sudah selesai tetap tersimpan aman di cache!")
+                log_callback("Translation cancelled. Completed progress saved to cache.")
             return False
 
         # 4. Inject translations back into files
         if log_callback:
-            log_callback("Menyuntikkan terjemahan ke dalam file aset game...")
+            log_callback("Applying translations to asset files...")
 
         modified_bundles = []
         for bf, tasks in file_tasks.items():
@@ -344,29 +344,25 @@ class UnityPatcher:
                             pass
 
                 if modified:
-                    if log_callback:
-                        log_callback(f"[Menyimpan] Memproses file aset: {os.path.basename(bf)}...")
                     data = env.file.save()
                     with open(bf, "wb") as f:
                         f.write(data)
                     modified_bundles.append(bf)
                     if log_callback:
-                        log_callback(f"[Sukses Patch] {os.path.basename(bf)} ({len(data)} bytes)")
+                        log_callback(f"Updated: {os.path.basename(bf)} ({len(data):,} bytes)")
 
             except Exception as e:
                 if log_callback:
-                    log_callback(f"[Error] Gagal patch {os.path.basename(bf)}: {e}")
+                    log_callback(f"Failed to update {os.path.basename(bf)}: {e}")
 
         # 5. Sync Addressables CRC if applicable
         if catalog_bin and os.path.exists(catalog_bin) and modified_bundles:
             if log_callback:
-                log_callback("Menyelaraskan CRC Addressables di catalog.bin...")
+                log_callback("Synchronizing Addressables CRC in catalog.bin...")
             self.sync_crcs(catalog_bin, modified_bundles, log_callback)
 
         if log_callback:
-            log_callback("=======================================================")
-            log_callback("PROSES SELESAI! Game siap dimainkan dalam Bahasa Indonesia.")
-            log_callback("=======================================================")
+            log_callback("Done: Translation applied successfully.")
         return True
 
     def sync_crcs(self, catalog_bin: str, modified_bundles: list[str], log_callback=None):
