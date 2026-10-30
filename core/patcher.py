@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import time
 import re
+import struct
 import UnityPy
 from core.translator import BatchTranslator
 from core.config import load_settings
@@ -371,41 +372,56 @@ class UnityPatcher:
             return
 
         log_dir = os.path.expanduser(r"~\AppData\LocalLow")
-        try:
-            p = subprocess.Popen([exe_path], cwd=os.path.dirname(exe_path))
-            time.sleep(8)
-            p.kill()
-        except Exception:
-            return
 
-        latest_log = None
-        for root, _, files in os.walk(log_dir):
-            if "Player.log" in files and self.game_info.get("exe_name", "").lower() in root.lower():
-                latest_log = os.path.join(root, "Player.log")
-                break
+        # Retry loop: Addressables can fail in stages if dependencies are chained
+        for attempt in range(3):
+            try:
+                p = subprocess.Popen([exe_path], cwd=os.path.dirname(exe_path))
+                time.sleep(7)
+                p.kill()
+            except Exception:
+                return
 
-        if not latest_log:
-            return
+            latest_log = None
+            for root, _, files in os.walk(log_dir):
+                if "Player.log" in files and self.game_info.get("exe_name", "").lower() in root.lower():
+                    latest_log = os.path.join(root, "Player.log")
+                    break
 
-        try:
-            with open(latest_log, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
+            if not latest_log:
+                return
 
-            matches = re.findall(r"CRC Mismatch\. Provided ([0-9a-fA-F]+), calculated ([0-9a-fA-F]+).*?AssetBundle '.*?([a-zA-Z0-9_\-]+)\.bundle'", content)
-            if matches:
+            try:
+                with open(latest_log, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+
+                matches = re.findall(r"CRC Mismatch\. Provided ([0-9a-fA-F]+), calculated ([0-9a-fA-F]+).*?AssetBundle '.*?([a-zA-Z0-9_\-]+)\.bundle'", content)
+                if not matches:
+                    break
+
                 with open(catalog_bin, "rb") as f:
                     cat_data = bytearray(f.read())
 
+                synced_any = False
                 for prov_hex, calc_hex, bname in matches:
-                    prov_bytes = bytes.fromhex(prov_hex)
-                    calc_bytes = bytes.fromhex(calc_hex)
-                    pos = cat_data.find(prov_bytes)
-                    if pos != -1:
-                        cat_data[pos:pos+4] = calc_bytes
-                        if log_callback:
-                            log_callback(f"[CRC Sync] Bundle {bname}: {prov_hex} -> {calc_hex}")
+                    try:
+                        prov_val = int(prov_hex, 16)
+                        calc_val = int(calc_hex, 16)
+                        prov_bytes = struct.pack("<I", prov_val)
+                        calc_bytes = struct.pack("<I", calc_val)
+                        pos = cat_data.find(prov_bytes)
+                        if pos != -1:
+                            cat_data[pos:pos+4] = calc_bytes
+                            synced_any = True
+                            if log_callback:
+                                log_callback(f"[CRC Sync] Bundle {bname}: {prov_hex} -> {calc_hex}")
+                    except Exception:
+                        pass
 
-                with open(catalog_bin, "wb") as f:
-                    f.write(cat_data)
-        except Exception:
-            pass
+                if synced_any:
+                    with open(catalog_bin, "wb") as f:
+                        f.write(cat_data)
+                else:
+                    break
+            except Exception:
+                break
